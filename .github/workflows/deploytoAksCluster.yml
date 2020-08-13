@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: nikitacontainer.azurecr.io
+        username: ${{ secrets.acr_nikitacontainer_username }}
+        password: ${{ secrets.acr_nikitacontainer_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/AppService/node_express_sampleApp" -f  "AppService/node_express_sampleApp/Dockerfile" -t nikitacontainer.azurecr.io/testdp5:${{ github.sha }}
+        docker push nikitacontainer.azurecr.io/testdp5:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_testdp5_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep testdp54887 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace testdp54887`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: testdp54887
+        container-registry-url: nikitacontainer.azurecr.io
+        container-registry-username: ${{ secrets.acr_nikitacontainer_username }}
+        container-registry-password: ${{ secrets.acr_nikitacontainer_password }}
+        secret-name: testdp5dockerauth
+       
+    - uses: azure/k8s-deploy@v1
+      with:
+        namespace: testdp54887
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          nikitacontainer.azurecr.io/testdp5:${{ github.sha }}
+        imagepullsecrets: |
+          testdp5dockerauth
