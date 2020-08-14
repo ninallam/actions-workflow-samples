@@ -1,0 +1,16 @@
+apiVersion : apps/v1beta1
+kind: Deployment
+metadata:
+  name: "testdp5-99e8"
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: "testdp5-99e8"
+    spec:
+      containers:
+        - name: "testdp5-99e8"
+          image: "nikitacontainer.azurecr.io/testdp5"
+          ports:
+          - containerPort: 8080
